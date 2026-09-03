@@ -1,0 +1,32 @@
+name: Build and Push Container Image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Quay.io
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build image
+        run: |
+          docker build -t quay.io/redhat-ads-tech/snow-mock:latest \
+                        -t quay.io/redhat-ads-tech/snow-mock:${{ github.sha }} .
+
+      - name: Push image
+        if: github.event_name == 'push'
+        run: |
+          docker push quay.io/redhat-ads-tech/snow-mock:latest
+          docker push quay.io/redhat-ads-tech/snow-mock:${{ github.sha }}
