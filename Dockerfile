@@ -1,23 +1,22 @@
-# Use the specified Red Hat Universal Base Image for Python 3.11
-FROM registry.access.redhat.com/ubi9/python-311:latest
+# Build stage: install dependencies in a full image
+FROM registry.access.redhat.com/ubi10/python-314-minimal:latest AS builder
 
-USER 0
-
-# Set the working directory in the container
 WORKDIR /opt/app-root/src
 
-# Copy the requirements file and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --target=/opt/app-root/deps -r requirements.txt
 
-# Copy the rest of the application code
+# Runtime stage: hardened image
+FROM registry.access.redhat.com/hi/python:3.14
+
+COPY --from=builder /opt/app-root/deps /opt/app-root/deps
+ENV PYTHONPATH=/opt/app-root/deps
+
+WORKDIR /opt/app-root/src
+
 COPY app.py .
 COPY static/ static/
 
-# Expose the port the app runs on
 EXPOSE 8080
 
-USER 1001
-
-# Command to run the application using gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+ENTRYPOINT ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
