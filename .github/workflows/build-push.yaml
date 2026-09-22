@@ -3,6 +3,7 @@ name: Build and Push Container Image
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -20,13 +21,33 @@ jobs:
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_PASSWORD }}
 
+      - name: Determine tags
+        id: tags
+        run: |
+          TAGS="quay.io/redhat-ads-tech/snow-mock:${{ github.sha }}"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+            TAGS="$TAGS,quay.io/redhat-ads-tech/snow-mock:${VERSION}"
+            TAGS="$TAGS,quay.io/redhat-ads-tech/snow-mock:latest"
+          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
+            TAGS="$TAGS,quay.io/redhat-ads-tech/snow-mock:latest"
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
       - name: Build image
         run: |
-          docker build -t quay.io/redhat-ads-tech/snow-mock:latest \
-                        -t quay.io/redhat-ads-tech/snow-mock:${{ github.sha }} .
+          IFS=',' read -ra TAG_ARRAY <<< "${{ steps.tags.outputs.tags }}"
+          BUILD_ARGS=""
+          for tag in "${TAG_ARRAY[@]}"; do
+            BUILD_ARGS="$BUILD_ARGS -t $tag"
+          done
+          docker build $BUILD_ARGS .
 
       - name: Push image
         if: github.event_name == 'push'
         run: |
-          docker push quay.io/redhat-ads-tech/snow-mock:latest
-          docker push quay.io/redhat-ads-tech/snow-mock:${{ github.sha }}
+          IFS=',' read -ra TAG_ARRAY <<< "${{ steps.tags.outputs.tags }}"
+          for tag in "${TAG_ARRAY[@]}"; do
+            docker push "$tag"
+          done
