@@ -3,7 +3,7 @@ name: Build and Push Container Image
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ['*']
   pull_request:
     branches: [main]
 
@@ -25,10 +25,8 @@ jobs:
         id: tags
         run: |
           TAGS="quay.io/redhat-ads-tech/snow-mock:${{ github.sha }}"
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${{ github.ref_name }}"
-            VERSION="${VERSION#v}"
-            TAGS="$TAGS,quay.io/redhat-ads-tech/snow-mock:${VERSION}"
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAGS="$TAGS,quay.io/redhat-ads-tech/snow-mock:${{ github.ref_name }}"
             TAGS="$TAGS,quay.io/redhat-ads-tech/snow-mock:latest"
           elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
             TAGS="$TAGS,quay.io/redhat-ads-tech/snow-mock:latest"
